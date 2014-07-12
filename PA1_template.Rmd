@@ -32,7 +32,7 @@ ggplot(dtDailySteps, aes(x=sumSteps)) +
 	geom_histogram(alpha=1/2, binwidth=1000)
 ```
 
-Calculate the mean and median total number of steps taken per day **before imputing**.
+Calculate the mean and median total number of steps taken per day.
 
 ```{r, results='asis'}
 dtDailySteps[, list(mean = mean(sumSteps, na.rm=TRUE), median = median(sumSteps, na.rm=TRUE))]
@@ -87,7 +87,7 @@ newdt <- dt
 toreplace <- is.na(newdt)
 for (i in 1:dim(toreplace)[1]) {
  if (toreplace==TRUE) {
-     newdt$steps[which(toreplace)] <- dt$steps[which(aggdat$interval==stepdat2$interval[which(toreplace)])]
+     newdt$steps[which(toreplace)] <- dtIntervals$meanSteps[which(dtIntervals$interval==newdt$interval[which(toreplace)])]
  }
 }
 

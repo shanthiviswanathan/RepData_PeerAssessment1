@@ -35,18 +35,73 @@ ggplot(dtDailySteps, aes(x=sumSteps)) +
 Calculate the mean and median total number of steps taken per day **before imputing**.
 
 ```{r, results='asis'}
-library(xtable)
-tab <- dtDailySteps[, list(n = .N, nValid = sum(!is.na(sumSteps)), mean = mean(sumSteps, na.rm=TRUE), median = median(sumSteps, na.rm=TRUE))]
-print(xtable(tab), type="html", include.rownames=FALSE)
+dtDailySteps[, list(mean = mean(sumSteps, na.rm=TRUE), median = median(sumSteps, na.rm=TRUE))]
 ```
 
-
 ## What is the average daily activity pattern?
+Aggregate the average number of steps taken by 5-minute interval.
 
+```{r}
+dtIntervals <- dt[, list(meanSteps = mean(steps, na.rm=TRUE)), interval]
+```
 
+- Time series plot of the 5-minute interval and the average number of steps taken across all days.
+- Which 5 minute interval contains maximum # of steps?
+
+```{r timeseriesStepsTakenEachInterval}
+ggplot(dtIntervals, aes(x=interval, y=meanSteps)) +
+	geom_line()
+maxInt <- dtIntervals[which(dtIntervals$meanSteps==max(dtIntervals$meanSteps)),]$interval	
+```
+
+The interval containing, on average, the maximum numer of steps is `r maxint`.
 
 ## Imputing missing values
 
+> Note that there are a number of days/intervals where there are missing
+> values (coded as `NA`). The presence of missing days may introduce
+> bias into some calculations or summaries of the data.
+> 
+> 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+> 
+> 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+> 
+> 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+> 
+> 4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
 
+Calculate the total number of missing values.
+
+```{r, results='asis'}
+missrows <- sum(is.na(dt))
+```
+A total of `r missrows` rows contain missing values.
+
+*Imputation strategy*
+
+Replace missing values with observed mean for that interval. 
+Code below replaces missing values.
+
+```{r,warning=FALSE}
+newdt <- dt
+toreplace <- is.na(newdt)
+for (i in 1:dim(toreplace)[1]) {
+ if (toreplace==TRUE) {
+     newdt$steps[which(toreplace)] <- dt$steps[which(aggdat$interval==stepdat2$interval[which(toreplace)])]
+ }
+}
+
+## Aggregate imputed data by day
+stepsperday2 <- aggregate(stepdat2$steps,by=list(as.numeric(as.Date(stepdat2$date))),FUN=sum,na.rm=TRUE)
+hist(stepsperday2[,2],main='Histogram of Imputed Number of Steps Per Day', ylab='Frequency',xlab='Steps per Day')
+
+## Mean and median
+stepsum2 <- summary(stepsperday2[,2])```
+
+The mean and median number of steps per day are `r stepsum2[3]` and `r stepsum2[4]` respectively.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+#*Weekday/Weekend Differences*
+```{r}
+stepdat2$weekday <- as.factor(weekdays(as.Date(stepdat2$date))=='Saturday' | weekdays(as.Date(stepdat2$date))=='Sunday')
+```

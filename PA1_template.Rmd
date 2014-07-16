@@ -51,7 +51,8 @@ dtIntervals <- dt[, list(meanSteps = mean(steps, na.rm=TRUE)), interval]
 ```{r timeseriesStepsTakenEachInterval}
 ggplot(dtIntervals, aes(x=interval, y=meanSteps)) +
 	geom_line()
-maxInt <- dtIntervals[which(dtIntervals$meanSteps==max(dtIntervals$meanSteps)),]$interval	
+maxInt <- dtIntervals[which(dtIntervals$meanSteps==max(dtIntervals$meanSteps)),]$interval
+maxInt2 <- dtIntervals[interval,max(meanSteps)]
 ```
 
 The interval containing, on average, the maximum numer of steps is `r maxint`.
@@ -83,25 +84,24 @@ Replace missing values with observed mean for that interval.
 Code below replaces missing values.
 
 ```{r,warning=FALSE}
-newdt <- dt
-toreplace <- is.na(newdt)
-for (i in 1:dim(toreplace)[1]) {
- if (toreplace==TRUE) {
-     newdt$steps[which(toreplace)] <- dtIntervals$meanSteps[which(dtIntervals$interval==newdt$interval[which(toreplace)])]
- }
-}
+naDt <- data.table(dt,key="interval")
+fillDt <- data.table(dtIntervals, key="interval")
+mergedDt <- naDt[fillDt]
+mergedDt[is.na(steps), steps:=steps.1]
+newDt <- mergedDt[,list(interval, steps, date)]
 
 ## Aggregate imputed data by day
-stepsperday2 <- aggregate(stepdat2$steps,by=list(as.numeric(as.Date(stepdat2$date))),FUN=sum,na.rm=TRUE)
-hist(stepsperday2[,2],main='Histogram of Imputed Number of Steps Per Day', ylab='Frequency',xlab='Steps per Day')
+newDtDailySteps <- aggregate(steps ~ date, data=newDt, FUN=sum)
 
 ## Mean and median
-stepsum2 <- summary(stepsperday2[,2])```
+```{r, results='asis'}
+newDtDailySteps[, list(mean = mean(steps, na.rm=TRUE), median = median(steps, na.rm=TRUE))]
+```
 
-The mean and median number of steps per day are `r stepsum2[3]` and `r stepsum2[4]` respectively.
+The mean and median number of steps per day are `r mean` and `r median` respectively.
 
 ## Are there differences in activity patterns between weekdays and weekends?
 #*Weekday/Weekend Differences*
 ```{r}
-stepdat2$weekday <- as.factor(weekdays(as.Date(stepdat2$date))=='Saturday' | weekdays(as.Date(stepdat2$date))=='Sunday')
+#stepdat2$weekday <- as.factor(weekdays(as.Date(stepdat2$date))=='Saturday' | weekdays(as.Date(stepdat2$date))=='Sunday')
 ```

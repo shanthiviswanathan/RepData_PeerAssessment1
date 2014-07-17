@@ -1,9 +1,12 @@
+========================================================
+
 # Reproducible Research: Peer Assessment 1
 
-
 ## Loading and preprocessing the data
-Read the CSV file.
-Convert the data frame to a data table using the [`data.table`]
+Read the CSV file. 
+
+Convert the data frame to a data table using the [`data.table`]. 
+
 Convert the "date" variable to a "date class".
 
 ```{r}
@@ -12,8 +15,6 @@ dt <- read.csv(file.path(getwd(), "activity.csv"))
 dt <- data.table(dt)
 dt <- dt[, date := as.Date(date)]
 ```
-
-
 ## What is mean total number of steps taken per day?
 
 Aggregate the number of steps taken each day.
@@ -23,13 +24,12 @@ Days with missing values (`NA`) will have `NA` when aggregated.
 dtDailySteps <- dt[, list(sumSteps = sum(steps)), date]
 head(dtDailySteps)
 ```
-
 Plot a histogram of the total number of steps taken each day.
 
 ```{r histogramStepsTakenEachDay}
 library(ggplot2)
 ggplot(dtDailySteps, aes(x=sumSteps)) +
-	geom_histogram(alpha=1/2, binwidth=1000)
+  geom_histogram(alpha=1/2, binwidth=1000)
 ```
 
 Calculate the mean and median total number of steps taken per day.
@@ -44,64 +44,66 @@ Aggregate the average number of steps taken by 5-minute interval.
 ```{r}
 dtIntervals <- dt[, list(meanSteps = mean(steps, na.rm=TRUE)), interval]
 ```
-
 - Time series plot of the 5-minute interval and the average number of steps taken across all days.
 - Which 5 minute interval contains maximum # of steps?
 
 ```{r timeseriesStepsTakenEachInterval}
 ggplot(dtIntervals, aes(x=interval, y=meanSteps)) +
-	geom_line()
-maxInt <- dtIntervals[which(dtIntervals$meanSteps==max(dtIntervals$meanSteps)),]$interval
-maxInt2 <- dtIntervals[interval,max(meanSteps)]
+  geom_line()
+maxInt <- dtIntervals[which.max(meanSteps),interval]
 ```
 
-The interval containing, on average, the maximum numer of steps is `r maxint`.
+**The interval containing, on average, the maximum number of steps is `r maxInt`.**
 
 ## Imputing missing values
 
-> Note that there are a number of days/intervals where there are missing
-> values (coded as `NA`). The presence of missing days may introduce
-> bias into some calculations or summaries of the data.
-> 
-> 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
-> 
-> 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
-> 
-> 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
-> 
-> 4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
-
-Calculate the total number of missing values.
+Note that there are a number of days/intervals where there are missing values (coded as `NA`). The presence of missing days may introduce bias into some calculations or summaries of the data.
+ 
+- Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
 
 ```{r, results='asis'}
 missrows <- sum(is.na(dt))
 ```
-A total of `r missrows` rows contain missing values.
+**A total of `r missrows` rows contain missing values.**
 
-*Imputation strategy*
+- Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
 
-Replace missing values with observed mean for that interval. 
-Code below replaces missing values.
+The strategy is to replace the missing values with observed mean for that interval. 
 
-```{r,warning=FALSE}
+- Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r,warning=FALSE,results="hide"}
 naDt <- data.table(dt,key="interval")
 fillDt <- data.table(dtIntervals, key="interval")
 mergedDt <- naDt[fillDt]
-mergedDt[is.na(steps), steps:=steps.1]
+mergedDt[is.na(steps), steps:=meanSteps]
 newDt <- mergedDt[,list(interval, steps, date)]
-
-## Aggregate imputed data by day
-newDtDailySteps <- aggregate(steps ~ date, data=newDt, FUN=sum)
-
-## Mean and median
-```{r, results='asis'}
-newDtDailySteps[, list(mean = mean(steps, na.rm=TRUE), median = median(steps, na.rm=TRUE))]
 ```
 
-The mean and median number of steps per day are `r mean` and `r median` respectively.
+ 
+- Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r histogramStepsTakenEachDayAfterImputing}
+## Aggregate imputed data by day
+newDtDailySteps <- newDt[, list(sumSteps = sum(steps)), date]
+ggplot(newDtDailySteps, aes(x=sumSteps)) +
+  geom_histogram(alpha=1/2, binwidth=1000)
+
+newMean <- mean(newDtDailySteps$sumSteps,na.rm=TRUE)
+newMedian <- median(newDtDailySteps$sumSteps,na.rm=TRUE)
+```
+
+**The mean and median number of steps per day are `r sprintf("%.0f",newMean)` and `r newMedian` respectively.**
+
+After imputing "NA" values, the mean and median both are less than before.The overall impact of the imputed values is to **lower** the estimates of the number of steps taken each day.
 
 ## Are there differences in activity patterns between weekdays and weekends?
 #*Weekday/Weekend Differences*
-```{r}
-#stepdat2$weekday <- as.factor(weekdays(as.Date(stepdat2$date))=='Saturday' | weekdays(as.Date(stepdat2$date))=='Sunday')
+```{r panelStepsTakenWeekDayWeekEnd}
+newDt$dayType <- as.factor(ifelse(weekdays(newDt$date) %in% c("Saturday","Sunday"), "Weekend", "Weekday"))
+newDtIntervals <- newDt[, list(meanSteps = mean(steps, na.rm=TRUE)), list(dayType, interval)]
+ggplot(newDtIntervals, aes(x=interval, y=meanSteps, color=dayType)) +
+  geom_line() +
+  facet_wrap(~ dayType, nrow=2) +
+	theme(legend.position="none") +ylab("Number of Steps")
 ```
